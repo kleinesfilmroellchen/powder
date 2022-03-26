@@ -1,0 +1,7 @@
+[package]
+name = "powder-bootstrap"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/kleinesfilmroellchen/powder"
+
+[dependencies]
