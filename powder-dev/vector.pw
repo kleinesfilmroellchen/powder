@@ -1,0 +1,30 @@
+
+public struct Vector<T> {
+	size: usize,
+	capacity: usize,
+	data: Owned<&[T]>,
+}
+
+type PredicateFunction<T> = function(value: &T): bool;
+
+public method Vector<T>.any(self: &, predicate: PredicateFunction<T>): bool {
+	for element: & in self {
+		if predicate(element) {
+			return true;
+		}
+	}
+	false
+}
+
+public interface Iterator<T>;
+
+public method Iterator<T>.next(self: &mut): Optional<T>;
+
+public method Iterator<T>.count(self: &mut): usize {
+	var current = self.next();
+	var count = 0;
+	while current.is_some() {
+		count += 1;
+	}
+	count
+}

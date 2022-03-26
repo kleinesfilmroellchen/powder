@@ -1,0 +1,25 @@
+
+public enum Optional<T> {
+	Some(value: T),
+	None,
+}
+
+public method Optional<T>.is_some(self: &): bool =>
+	match self {
+		Some(value) => true,
+		None => false,
+	};
+
+public method Optional<T>.is_none(self: &): bool => not self.is_some();
+
+public method Optional<T>.value_or_default(self, default: T): T =>
+	match self {
+		Some(value) => value,
+		None => default,
+	};
+
+public method Optional<T>.value_or(self, default_function: function(): T ): T =>
+	match self {
+		Some(value) => value,
+		None => default_function(),
+	};
