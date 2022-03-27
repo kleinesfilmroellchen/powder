@@ -2,7 +2,7 @@ use log::debug;
 use std::fmt::{Display, Formatter};
 
 #[repr(u64)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenType {
 	// Comments
 	Comment,
@@ -55,7 +55,7 @@ impl TokenType {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Token<'a> {
 	pub type_: TokenType,
 	pub start: usize,
@@ -69,6 +69,15 @@ impl<'a> Token<'a> {
 			.code
 			.get(self.start..self.end)
 			.unwrap_or_else(|| panic!("Invalid token from {} to {}", self.start, self.end))
+	}
+
+	pub fn expect(self, type_: TokenType) -> Result<Self, String> {
+		debug!("Checking for type {:?}", type_);
+		if self.type_ == type_ {
+			Ok(self)
+		} else {
+			Err(format!("Expected '{:?}' token", type_))
+		}
 	}
 }
 
