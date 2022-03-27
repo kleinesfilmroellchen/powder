@@ -2,6 +2,6 @@
 // This is a comment.
 
 function main() {
-	const x: n64 = 78;
+	const x: n64 = +78;
 	var y: n64 = 0;
 }

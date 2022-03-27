@@ -5,3 +5,5 @@ edition = "2021"
 repository = "https://github.com/kleinesfilmroellchen/powder"
 
 [dependencies]
+log = "^0.4"
+simple_logger = "^2.1"
