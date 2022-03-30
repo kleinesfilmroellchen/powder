@@ -182,3 +182,18 @@ fn parse_expression(token_iterator: &mut TokenStream) -> Result<Expression, Stri
 		Ok(Expression::NaturalLiteral(value))
 	}
 }
+
+#[cfg(test)]
+mod test {
+	extern crate test;
+	use super::*;
+	use crate::lexer;
+	use test::Bencher;
+
+	#[bench]
+	fn bench_parser(bencher: &mut Bencher) {
+		let file_contents = std::fs::read_to_string("../powder-dev/simple.pw").unwrap();
+		let tokens = lexer::lex(&file_contents).unwrap();
+		bencher.iter(move || parse(tokens.clone()));
+	}
+}
