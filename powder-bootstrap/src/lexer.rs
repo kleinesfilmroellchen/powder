@@ -72,11 +72,19 @@ impl<'a> Token<'a> {
 	}
 
 	pub fn expect(self, type_: TokenType) -> Result<Self, String> {
-		debug!("Checking for type {:?}", type_);
+		debug!("Checking for type {:?}, but has {:?}", type_, self.type_);
 		if self.type_ == type_ {
 			Ok(self)
 		} else {
 			Err(format!("Expected '{:?}' token", type_))
+		}
+	}
+
+	pub fn expect_any(self, types: &[TokenType]) -> Result<Self, String> {
+		if types.contains(&self.type_) {
+			Ok(self)
+		} else {
+			Err(format!("Expected any of '{:?}' token", types))
 		}
 	}
 }

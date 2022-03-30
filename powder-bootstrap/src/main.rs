@@ -26,7 +26,7 @@ fn main() {
 					.collect::<Vec<String>>()
 					.join(" ")
 			);
-			match parser::parse(&tokens) {
+			match parser::parse(tokens) {
 				Ok(ast) => println!("{:#?}", ast),
 				Err(why) => panic!("Error while parsing: {:?}", why),
 			}

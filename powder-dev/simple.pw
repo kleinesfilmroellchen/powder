@@ -5,3 +5,5 @@ function main() {
 	const x: n64 = +78;
 	var y: n64 = 0;
 }
+
+const a_global: n64;

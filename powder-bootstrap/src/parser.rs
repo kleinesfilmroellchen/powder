@@ -2,52 +2,81 @@ use crate::ast::{
 	Ast, Block, Definition, Expression, File, Function, Statement, Type, VariableKind,
 };
 use crate::lexer::{Token, TokenType};
-use log::debug;
-use std::iter::Peekable;
 
-pub fn parse(tokens: &[Token]) -> Result<Box<dyn Ast>, String> {
+// TODO: Include the code string with this struct. That makes it self-referential, though, so we would need ouboros (?).
+#[derive(Debug)]
+pub struct TokenStream<'a> {
+	tokens: Vec<Token<'a>>,
+	index: usize,
+}
+
+impl<'a> TokenStream<'a> {
+	pub fn new(tokens: Vec<Token<'a>>) -> Self {
+		Self {
+			tokens: tokens
+				.into_iter()
+				.filter(|token| token.type_ != TokenType::Comment)
+				.collect(),
+			index: 0,
+		}
+	}
+
+	pub fn len(&self) -> usize {
+		self.tokens.len()
+	}
+
+	pub fn is_end(&self) -> bool {
+		self.index >= self.len()
+	}
+
+	pub fn next(&mut self, error_message: &str) -> Result<Token<'a>, String> {
+		if self.is_end() {
+			Err(error_message.to_owned())
+		} else {
+			self.index += 1;
+			Ok(self.tokens[self.index - 1])
+		}
+	}
+
+	pub fn lookahead(&mut self, amount: usize, error_message: &str) -> Result<&[Token<'a>], String> {
+		self
+			.tokens
+			.get(self.index..self.index + amount)
+			.ok_or_else(|| error_message.to_owned())
+	}
+}
+
+pub fn parse(tokens: Vec<Token>) -> Result<Box<dyn Ast>, String> {
 	let mut definitions = Vec::<Definition>::new();
 
-	let mut token_iterator = tokens.iter().peekable();
-	while let Some(next_token) = token_iterator.next() {
-		if next_token.type_ == TokenType::Comment {
-			continue;
-		}
+	let mut tokens = TokenStream::new(tokens);
 
-		// TODO: Deal with comments everywhere.
-		definitions.push(parse_definition(*next_token, &mut token_iterator)?);
+	while !tokens.is_end() {
+		definitions.push(parse_definition(&mut tokens)?);
 	}
 
 	Ok(Box::new(File { definitions }))
 }
 
-fn parse_definition(
-	next_token: Token,
-	token_iterator: &mut Peekable<std::slice::Iter<Token>>,
-) -> Result<Definition, String> {
-	if next_token.expect(TokenType::Function).is_ok() {
+fn parse_definition(token_iterator: &mut TokenStream) -> Result<Definition, String> {
+	let first_token = token_iterator.lookahead(1, "Expected definition")?[0];
+	if first_token.expect(TokenType::Function).is_ok() {
+		token_iterator.next("")?;
 		let function_name = token_iterator
-			.next()
-			.ok_or("Expected function name")?
+			.next("Expected function name")?
 			.expect(TokenType::Identifer)?;
 		token_iterator
-			.next()
-			.ok_or("Expected '('")?
+			.next("Expected '('")?
 			.expect(TokenType::OpenParenthesis)?;
 		// TODO: Parse arguments
 		token_iterator
-			.next()
-			.ok_or("Expected ')'")?
+			.next("Expected ')'")?
 			.expect(TokenType::CloseParenthesis)?;
 
-		let function_body = parse_block(
-			*token_iterator.next().ok_or("Expected '{'")?,
-			token_iterator,
-		)?;
+		let function_body = parse_block(token_iterator)?;
 
 		token_iterator
-			.next()
-			.ok_or("Expected '}'")?
+			.next("Expected '}'")?
 			.expect(TokenType::CloseBrace)?;
 
 		Ok(Definition::Function(Function {
@@ -55,36 +84,27 @@ fn parse_definition(
 			body: function_body,
 		}))
 	} else {
-		let first_function_token = token_iterator
-			.next()
-			.ok_or("Expected variable declaration")?
-			.expect(TokenType::Var)
-			.or_else(|_| next_token.expect(TokenType::Const))
-			.map_err(|_| String::from("Expected 'const' or 'var'"))?;
-		Ok(Definition::Statement(parse_statement(
-			first_function_token,
-			token_iterator,
-		)?))
+		Ok(Definition::Statement(parse_statement(token_iterator)?))
 	}
 }
 
-fn parse_block(
-	next_token: Token,
-	token_iterator: &mut Peekable<std::slice::Iter<Token>>,
-) -> Result<Block, String> {
-	next_token.expect(TokenType::OpenBrace)?;
+fn parse_block(token_iterator: &mut TokenStream) -> Result<Block, String> {
+	token_iterator
+		.next("Expected '{'")?
+		.expect(TokenType::OpenBrace)?;
 
 	let mut statements = Vec::<Statement>::new();
 
-	let mut maybe_peeked_next = token_iterator.peek();
+	let mut maybe_peeked_next = token_iterator
+		.lookahead(1, "Expected statement")
+		.map(|peeked_next| peeked_next[0]);
 	while maybe_peeked_next.map_or(false, |peeked_next| {
 		peeked_next.type_ != TokenType::CloseBrace
 	}) {
-		statements.push(parse_statement(
-			*token_iterator.next().ok_or("Expected something")?,
-			token_iterator,
-		)?);
-		maybe_peeked_next = token_iterator.peek();
+		statements.push(parse_statement(token_iterator)?);
+		maybe_peeked_next = token_iterator
+			.lookahead(1, "Expected statement")
+			.map(|peeked_next| peeked_next[0]);
 	}
 
 	// TODO: Parse last expression
@@ -94,49 +114,36 @@ fn parse_block(
 	})
 }
 
-fn parse_statement(
-	next_token: Token,
-	token_iterator: &mut Peekable<std::slice::Iter<Token>>,
-) -> Result<Statement, String> {
+fn parse_statement(token_iterator: &mut TokenStream) -> Result<Statement, String> {
 	// TODO: Parse other statement types
-	let kind = next_token
-		.expect(TokenType::Var)
-		.or_else(|_| next_token.expect(TokenType::Const))
-		.map_err(|_| String::from("Expected 'const' or 'var'"))?;
+	let kind = token_iterator
+		.next("Expected statement")?
+		.expect_any(&[TokenType::Var, TokenType::Const])?;
 
 	let identifier = token_iterator
-		.next()
-		.ok_or("Expected identifier")?
+		.next("Expected identifier")?
 		.expect(TokenType::Identifer)?;
 	token_iterator
-		.next()
-		.ok_or("Expected ':'")?
+		.next("Expected ':'")?
 		.expect(TokenType::Colon)?;
 	// TODO: Allow any type
 	let _type = token_iterator
-		.next()
-		.ok_or("Expected type")?
+		.next("Expected type")?
 		.expect(TokenType::N64)?;
 
 	// Get the initializer if it exists
-	let initializer = if let Ok(_equals) = token_iterator
-		.peek()
-		.ok_or("Expected ':' or ';'")?
-		.expect(TokenType::Equals)
+	let initializer = if let Ok(_equals) =
+		token_iterator.lookahead(1, "Expected '=' or ';'")?[0].expect(TokenType::Equals)
 	{
-		token_iterator.next();
-		let expression = parse_expression(
-			*token_iterator.next().ok_or("Expected expression")?,
-			token_iterator,
-		)?;
+		token_iterator.next("")?;
+		let expression = parse_expression(token_iterator)?;
 		token_iterator
-			.next()
-			.ok_or("Expected ';'")?
+			.next("Expected ';'")?
 			.expect(TokenType::Semicolon)?;
 		Some(expression)
 	} else {
 		token_iterator
-			.next()
+			.next("")
 			.unwrap()
 			.expect(TokenType::Semicolon)?;
 		None
@@ -154,19 +161,19 @@ fn parse_statement(
 	})
 }
 
-fn parse_expression(
-	next_token: Token,
-	token_iterator: &mut Peekable<std::slice::Iter<Token>>,
-) -> Result<Expression, String> {
+fn parse_expression(token_iterator: &mut TokenStream) -> Result<Expression, String> {
 	// TODO: Parse other expressions
-	if next_token.type_ == TokenType::Plus {
-		debug!("Unary plus found");
+	if let Ok(_equals) =
+		token_iterator.lookahead(1, "Expected expression")?[0].expect(TokenType::Plus)
+	{
+		token_iterator.next("")?;
 		Ok(Expression::UnaryPlus(Box::new(parse_expression(
-			*token_iterator.next().ok_or("Expected expression")?,
 			token_iterator,
 		)?)))
 	} else {
-		let number_literal = next_token.expect(TokenType::IntegerLiteral)?;
+		let number_literal = token_iterator
+			.next("Expected literal")?
+			.expect(TokenType::IntegerLiteral)?;
 		// TODO: Use our own integer parser
 		let value: u128 = number_literal
 			.text()
