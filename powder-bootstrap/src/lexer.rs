@@ -62,7 +62,7 @@ pub struct Token<'a> {
 	pub type_: TokenType,
 	pub start: usize,
 	pub end: usize,
-	pub code: &'a String,
+	pub code: &'a str,
 }
 
 impl<'a> Token<'a> {
@@ -99,12 +99,12 @@ impl Display for Token<'_> {
 
 #[derive(Debug)]
 struct LexerState<'a> {
-	pub code: &'a String,
+	pub code: &'a str,
 	pub current_position: usize,
 }
 
 impl<'a> LexerState<'a> {
-	pub fn is_end(&self) -> bool {
+	pub const fn is_end(&self) -> bool {
 		self.current_position >= self.code.len()
 	}
 
@@ -151,7 +151,7 @@ impl<'a> LexerState<'a> {
 	}
 }
 #[allow(clippy::ptr_arg)]
-pub fn lex(code: &String) -> Result<Vec<Token>, String> {
+pub fn lex(code: &str) -> Result<Vec<Token>, String> {
 	let mut state = LexerState {
 		code,
 		current_position: 0,
