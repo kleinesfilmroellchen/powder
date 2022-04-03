@@ -288,4 +288,72 @@ mod test {
 		let tokens = lexer::lex(&file_contents).unwrap();
 		bencher.iter(move || parse(tokens.clone()));
 	}
+
+	fn evaluate_expression(expression: Expression) -> i128 {
+		match expression {
+			Expression::NaturalLiteral(value) => value,
+			Expression::UnaryOperation(UnaryOperator::Plus, value) => evaluate_expression(*value),
+			Expression::UnaryOperation(UnaryOperator::Minus, value) => -evaluate_expression(*value),
+			Expression::BinaryOperation {
+				lhs,
+				operator: BinaryOperator::Add,
+				rhs,
+			} => evaluate_expression(*lhs) + evaluate_expression(*rhs),
+			Expression::BinaryOperation {
+				lhs,
+				operator: BinaryOperator::Subtract,
+				rhs,
+			} => evaluate_expression(*lhs) - evaluate_expression(*rhs),
+			Expression::BinaryOperation {
+				lhs,
+				operator: BinaryOperator::Multiply,
+				rhs,
+			} => evaluate_expression(*lhs) * evaluate_expression(*rhs),
+			Expression::BinaryOperation {
+				lhs,
+				operator: BinaryOperator::Divide,
+				rhs,
+			} => evaluate_expression(*lhs) / evaluate_expression(*rhs),
+			_ => panic!("Unsupported expression {:?} for evaluation", expression),
+		}
+	}
+
+	static mut TOKEN_STREAMS: Vec<Vec<Token>> = Vec::<Vec<Token>>::new();
+
+	fn create_tokens(code: &'static str) -> Result<TokenStream<'static>, String> {
+		unsafe {
+			TOKEN_STREAMS.push(lexer::lex(code)?);
+			Ok(TokenStream::new(&TOKEN_STREAMS[TOKEN_STREAMS.len() - 1]))
+		}
+	}
+
+	#[test]
+	fn test_parse_expression() -> Result<(), String> {
+		assert_eq!(
+			evaluate_expression(parse_expression(&mut create_tokens("-15")?)?),
+			-15
+		);
+		assert_eq!(
+			evaluate_expression(parse_expression(&mut create_tokens("0 + 7 * 3 + 5")?)?),
+			26
+		);
+		assert_eq!(
+			evaluate_expression(parse_expression(&mut create_tokens("1 - 5")?)?),
+			-4
+		);
+		assert_eq!(
+			evaluate_expression(parse_expression(&mut create_tokens("8 * 0 + 4")?)?),
+			4
+		);
+		assert_eq!(
+			evaluate_expression(parse_expression(&mut create_tokens("22 - 6 *2+1")?)?),
+			11
+		);
+		assert_eq!(
+			evaluate_expression(parse_expression(&mut create_tokens("2 - 2 - 1")?)?),
+			-1
+		);
+
+		Ok(())
+	}
 }
