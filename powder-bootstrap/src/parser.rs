@@ -6,26 +6,27 @@ use crate::lexer::{Token, TokenType};
 // TODO: Include the code string with this struct. That makes it self-referential, though, so we would need ouboros (?).
 #[derive(Debug)]
 pub struct TokenStream<'a> {
-	tokens: Vec<Token<'a>>,
+	tokens: &'a [Token<'a>],
 	index: usize,
 }
 
 impl<'a> TokenStream<'a> {
-	pub fn new(tokens: Vec<Token<'a>>) -> Self {
-		Self {
-			tokens: tokens
-				.into_iter()
-				.filter(|token| token.type_ != TokenType::Comment)
-				.collect(),
-			index: 0,
-		}
+	pub const fn new(tokens: &'a [Token<'a>]) -> Self {
+		Self { tokens, index: 0 }
 	}
 
-	pub fn len(&self) -> usize {
+	pub fn strip_comments(tokens: Vec<Token<'a>>) -> Vec<Token<'a>> {
+		tokens
+			.into_iter()
+			.filter(|token| token.type_ != TokenType::Comment)
+			.collect()
+	}
+
+	pub const fn len(&self) -> usize {
 		self.tokens.len()
 	}
 
-	pub fn is_end(&self) -> bool {
+	pub const fn is_end(&self) -> bool {
 		self.index >= self.len()
 	}
 
@@ -49,10 +50,11 @@ impl<'a> TokenStream<'a> {
 pub fn parse(tokens: Vec<Token>) -> Result<Box<dyn Ast>, String> {
 	let mut definitions = Vec::<Definition>::new();
 
-	let mut tokens = TokenStream::new(tokens);
+	let stripped_tokens = TokenStream::strip_comments(tokens);
+	let mut token_stream = TokenStream::new(&stripped_tokens);
 
-	while !tokens.is_end() {
-		definitions.push(parse_definition(&mut tokens)?);
+	while !token_stream.is_end() {
+		definitions.push(parse_definition(&mut token_stream)?);
 	}
 
 	Ok(Box::new(File { definitions }))
