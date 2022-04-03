@@ -45,7 +45,7 @@ impl Ast for Statement {}
 
 #[derive(Debug)]
 pub enum Expression {
-	NaturalLiteral(u128),
+	NaturalLiteral(i128),
 	UnaryOperation(UnaryOperator, Box<Expression>),
 	BinaryOperation {
 		operator: BinaryOperator,

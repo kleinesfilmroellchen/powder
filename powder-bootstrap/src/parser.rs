@@ -265,7 +265,7 @@ fn parse_factor(token_iterator: &mut TokenStream) -> Result<Expression, String> 
 		TokenType::IntegerLiteral => {
 			let number_literal = token_iterator.next("")?.expect(TokenType::IntegerLiteral)?;
 			// TODO: Use our own integer parser
-			let value: u128 = number_literal
+			let value: i128 = number_literal
 				.text()
 				.parse()
 				.map_err(|err| format!("Invalid number literal '{}'", err))?;
