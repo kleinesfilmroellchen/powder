@@ -1,3 +1,4 @@
+use crate::lexer::TokenType;
 use std::fmt::Debug;
 
 pub trait Ast: Debug {}
@@ -46,6 +47,11 @@ impl Ast for Statement {}
 pub enum Expression {
 	NaturalLiteral(u128),
 	UnaryOperation(UnaryOperator, Box<Expression>),
+	BinaryOperation {
+		operator: BinaryOperator,
+		lhs: Box<Expression>,
+		rhs: Box<Expression>,
+	},
 }
 impl Ast for Expression {}
 
@@ -64,6 +70,36 @@ pub enum UnaryOperator {
 	Not,
 	Reference,
 	Dereference,
+}
+
+impl UnaryOperator {
+	pub const fn from_token_type(token_type: TokenType) -> Option<Self> {
+		match token_type {
+			TokenType::Plus => Some(Self::Plus),
+			TokenType::Minus => Some(Self::Minus),
+			_ => None,
+		}
+	}
+}
+
+#[derive(Debug)]
+pub enum BinaryOperator {
+	Add,
+	Subtract,
+	Multiply,
+	Divide,
+}
+
+impl BinaryOperator {
+	pub const fn from_token_type(token_type: TokenType) -> Option<Self> {
+		match token_type {
+			TokenType::Plus => Some(Self::Add),
+			TokenType::Minus => Some(Self::Subtract),
+			TokenType::Star => Some(Self::Multiply),
+			// TODO: Parse / individually.
+			_ => None,
+		}
+	}
 }
 
 #[derive(Debug)]

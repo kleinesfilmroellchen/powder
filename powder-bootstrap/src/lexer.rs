@@ -26,6 +26,7 @@ pub enum TokenType {
 	Semicolon,
 	Plus,
 	Minus,
+	Star,
 }
 
 impl TokenType {
@@ -50,12 +51,13 @@ impl TokenType {
 			';' => Some(Self::Semicolon),
 			'+' => Some(Self::Plus),
 			'-' => Some(Self::Minus),
+			'*' => Some(Self::Star),
 			_ => None,
 		}
 	}
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Token<'a> {
 	pub type_: TokenType,
 	pub start: usize,

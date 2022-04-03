@@ -1,10 +1,12 @@
 use crate::ast::{
-	Ast, Block, Definition, Expression, File, Function, Statement, Type, UnaryOperator, VariableKind,
+	Ast, BinaryOperator, Block, Definition, Expression, File, Function, Statement, Type,
+	UnaryOperator, VariableKind,
 };
 use crate::lexer::{Token, TokenType};
+use log::debug;
 
 // TODO: Include the code string with this struct. That makes it self-referential, though, so we would need ouboros (?).
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct TokenStream<'a> {
 	tokens: &'a [Token<'a>],
 	index: usize,
@@ -39,11 +41,52 @@ impl<'a> TokenStream<'a> {
 		}
 	}
 
-	pub fn lookahead(&mut self, amount: usize, error_message: &str) -> Result<&[Token<'a>], String> {
+	pub fn lookahead(&self, amount: usize, error_message: &str) -> Result<&[Token<'a>], String> {
 		self
 			.tokens
 			.get(self.index..self.index + amount)
 			.ok_or_else(|| error_message.to_owned())
+	}
+
+	#[allow(clippy::cast_possible_wrap)]
+	pub fn backtrack(&mut self, amount: usize, error_message: &str) -> Result<(), String> {
+		if (self.index as isize - amount as isize) < 0 {
+			Err(error_message.to_owned())
+		} else {
+			self.index -= amount;
+			Ok(())
+		}
+	}
+
+	pub fn make_substream(&self) -> Self {
+		Self {
+			tokens: &self.tokens[self.index..],
+			index: 0,
+		}
+	}
+
+	pub fn limit_to_first(&mut self, type_: TokenType) -> &Self {
+		let mut current_index = self.index;
+		while let Some(next_token) = self.tokens.get(current_index..=current_index) {
+			if next_token[0].type_ == type_ {
+				break;
+			}
+			current_index += 1;
+		}
+		self.tokens = &self.tokens[..current_index];
+
+		self
+	}
+
+	pub fn advance_past_other(&mut self, other_stream: &Self) -> Result<&Self, String> {
+		let other_token = other_stream.lookahead(1, "Expected any token")?[0];
+		while let Ok(next_token) = self.next("") {
+			if next_token == other_token {
+				break;
+			}
+		}
+
+		Ok(self)
 	}
 }
 
@@ -138,7 +181,12 @@ fn parse_statement(token_iterator: &mut TokenStream) -> Result<Statement, String
 		token_iterator.lookahead(1, "Expected '=' or ';'")?[0].expect(TokenType::Equals)
 	{
 		token_iterator.next("")?;
-		let expression = parse_expression(token_iterator)?;
+		let mut expression_stream = token_iterator.make_substream();
+		expression_stream.limit_to_first(TokenType::Semicolon);
+		// debug!("{:#?}", expression_stream);
+		let expression = parse_expression(&mut expression_stream)?;
+		expression_stream.backtrack(1, ":yaksplode:")?;
+		token_iterator.advance_past_other(&expression_stream)?;
 		token_iterator
 			.next("Expected ';'")?
 			.expect(TokenType::Semicolon)?;
@@ -164,25 +212,66 @@ fn parse_statement(token_iterator: &mut TokenStream) -> Result<Statement, String
 }
 
 fn parse_expression(token_iterator: &mut TokenStream) -> Result<Expression, String> {
-	// TODO: Parse other expressions
-	if let Ok(_equals) =
-		token_iterator.lookahead(1, "Expected expression")?[0].expect(TokenType::Plus)
-	{
+	parse_binary_operation(
+		token_iterator,
+		parse_term,
+		&[TokenType::Plus, TokenType::Minus],
+	)
+}
+
+fn parse_binary_operation(
+	token_iterator: &mut TokenStream,
+	sub_operation_parser: fn(&mut TokenStream) -> Result<Expression, String>,
+	operators: &[TokenType],
+) -> Result<Expression, String> {
+	let mut lhs = sub_operation_parser(token_iterator)?;
+
+	let mut maybe_operator = token_iterator
+		.lookahead(1, &format!("Expected any of {:?}", operators))
+		.map(|tokens| tokens[0]);
+	while let Ok(operator) = maybe_operator {
+		if !operators.contains(&operator.type_) {
+			break;
+		}
 		token_iterator.next("")?;
-		Ok(Expression::UnaryOperation(
-			UnaryOperator::Plus,
-			Box::new(parse_expression(token_iterator)?),
-		))
-	} else {
-		let number_literal = token_iterator
-			.next("Expected literal")?
-			.expect(TokenType::IntegerLiteral)?;
-		// TODO: Use our own integer parser
-		let value: u128 = number_literal
-			.text()
-			.parse()
-			.map_err(|err| format!("Invalid number literal: {}", err))?;
-		Ok(Expression::NaturalLiteral(value))
+		let rhs = sub_operation_parser(token_iterator)?;
+		lhs = Expression::BinaryOperation {
+			operator: BinaryOperator::from_token_type(operator.type_).unwrap(),
+			lhs: Box::new(lhs),
+			rhs: Box::new(rhs),
+		};
+		maybe_operator = token_iterator
+			.lookahead(1, &format!("Expected any of {:?}", operators))
+			.map(|tokens| tokens[0]);
+	}
+	Ok(lhs)
+}
+
+fn parse_term(token_iterator: &mut TokenStream) -> Result<Expression, String> {
+	parse_binary_operation(token_iterator, parse_factor, &[TokenType::Star])
+}
+
+fn parse_factor(token_iterator: &mut TokenStream) -> Result<Expression, String> {
+	let token = token_iterator.lookahead(1, "Expected expression")?[0];
+	match token.type_ {
+		TokenType::Plus | TokenType::Minus => {
+			token_iterator.next("")?;
+			let unary_operand = parse_factor(token_iterator)?;
+			Ok(Expression::UnaryOperation(
+				UnaryOperator::from_token_type(token.type_).unwrap(),
+				Box::new(unary_operand),
+			))
+		}
+		TokenType::IntegerLiteral => {
+			let number_literal = token_iterator.next("")?.expect(TokenType::IntegerLiteral)?;
+			// TODO: Use our own integer parser
+			let value: u128 = number_literal
+				.text()
+				.parse()
+				.map_err(|err| format!("Invalid number literal '{}'", err))?;
+			Ok(Expression::NaturalLiteral(value))
+		}
+		_ => Err(format!("Unknown start of expression '{:?}'", token.type_)),
 	}
 }
 
