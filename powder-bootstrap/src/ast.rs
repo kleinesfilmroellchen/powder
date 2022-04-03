@@ -45,7 +45,7 @@ impl Ast for Statement {}
 #[derive(Debug)]
 pub enum Expression {
 	NaturalLiteral(u128),
-	UnaryPlus(Box<Expression>),
+	UnaryOperation(UnaryOperator, Box<Expression>),
 }
 impl Ast for Expression {}
 
@@ -55,6 +55,15 @@ pub enum VariableKind {
 	Immutable,
 	/// `var`
 	Mutable,
+}
+
+#[derive(Debug)]
+pub enum UnaryOperator {
+	Plus,
+	Minus,
+	Not,
+	Reference,
+	Dereference,
 }
 
 #[derive(Debug)]

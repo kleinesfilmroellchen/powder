@@ -1,5 +1,5 @@
 use crate::ast::{
-	Ast, Block, Definition, Expression, File, Function, Statement, Type, VariableKind,
+	Ast, Block, Definition, Expression, File, Function, Statement, Type, UnaryOperator, VariableKind,
 };
 use crate::lexer::{Token, TokenType};
 
@@ -167,9 +167,10 @@ fn parse_expression(token_iterator: &mut TokenStream) -> Result<Expression, Stri
 		token_iterator.lookahead(1, "Expected expression")?[0].expect(TokenType::Plus)
 	{
 		token_iterator.next("")?;
-		Ok(Expression::UnaryPlus(Box::new(parse_expression(
-			token_iterator,
-		)?)))
+		Ok(Expression::UnaryOperation(
+			UnaryOperator::Plus,
+			Box::new(parse_expression(token_iterator)?),
+		))
 	} else {
 		let number_literal = token_iterator
 			.next("Expected literal")?
