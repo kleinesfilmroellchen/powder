@@ -2,7 +2,7 @@
 // This is a comment.
 
 function main() {
-	const x: n64 = +78;
+	const x: n64 = +78 /6;
 	var y: n64 = 0 + 7 * 3 + 5;
 }
 

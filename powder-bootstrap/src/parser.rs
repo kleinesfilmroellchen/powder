@@ -248,7 +248,11 @@ fn parse_binary_operation(
 }
 
 fn parse_term(token_iterator: &mut TokenStream) -> Result<Expression, String> {
-	parse_binary_operation(token_iterator, parse_factor, &[TokenType::Star])
+	parse_binary_operation(
+		token_iterator,
+		parse_factor,
+		&[TokenType::Star, TokenType::Slash],
+	)
 }
 
 fn parse_factor(token_iterator: &mut TokenStream) -> Result<Expression, String> {

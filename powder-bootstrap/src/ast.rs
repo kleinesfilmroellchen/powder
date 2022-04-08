@@ -96,7 +96,7 @@ impl BinaryOperator {
 			TokenType::Plus => Some(Self::Add),
 			TokenType::Minus => Some(Self::Subtract),
 			TokenType::Star => Some(Self::Multiply),
-			// TODO: Parse / individually.
+			TokenType::Slash => Some(Self::Divide),
 			_ => None,
 		}
 	}

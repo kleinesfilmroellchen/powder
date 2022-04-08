@@ -1,6 +1,7 @@
 //! Powder bootstrap compiler.
 #![deny(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
 
+#![feature(let_chains)]
 #![feature(test)]
 
 use log::Level;

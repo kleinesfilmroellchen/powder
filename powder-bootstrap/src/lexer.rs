@@ -27,6 +27,7 @@ pub enum TokenType {
 	Plus,
 	Minus,
 	Star,
+	Slash,
 }
 
 impl TokenType {
@@ -52,6 +53,7 @@ impl TokenType {
 			'+' => Some(Self::Plus),
 			'-' => Some(Self::Minus),
 			'*' => Some(Self::Star),
+			'/' => Some(Self::Slash),
 			_ => None,
 		}
 	}
@@ -116,6 +118,10 @@ impl<'a> LexerState<'a> {
 			.unwrap_or_else(|| panic!("Invalid lexer position {}", self.current_position))
 	}
 
+	pub fn next_char(&self, lookahead: usize) -> Option<char> {
+		self.code.chars().nth(self.current_position + lookahead)
+	}
+
 	pub fn skip_whitespace(&mut self) -> &Self {
 		while !self.is_end() && self.current_char().is_whitespace() {
 			self.advance();
@@ -168,22 +174,31 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
 		let start = state.current_position;
 		match state.current_char() {
 			'/' => {
-				// FIXME: Distinguish between / and //
-				while state.current_char() != '\n' {
-					if state.advance().is_none() {
-						break;
+				if let Some(maybe_slash) = state.next_char(1) && maybe_slash == '/' {
+					while state.current_char() != '\n' {
+						if state.advance().is_none() {
+							break;
+						}
 					}
+					debug!(
+						"Found comment: '{}'",
+						&state.code[start..state.current_position]
+					);
+					tokens.push(Token {
+						start,
+						end: state.current_position,
+						code,
+						type_: TokenType::Comment,
+					});
+				} else {
+					state.advance();
+					tokens.push(Token {
+						start,
+						end: start+1,
+						code,
+						type_: TokenType::Slash,
+					});
 				}
-				debug!(
-					"Found comment: '{}'",
-					&state.code[start..state.current_position]
-				);
-				tokens.push(Token {
-					start,
-					end: state.current_position,
-					code,
-					type_: TokenType::Comment,
-				});
 			}
 			'a'..='z' | 'A'..='Z' | '_' => {
 				let word = state.next_word();
