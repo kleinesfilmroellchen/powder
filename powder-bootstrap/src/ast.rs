@@ -1,5 +1,6 @@
-use crate::lexer::TokenType;
 use std::fmt::Debug;
+
+use crate::lexer::TokenType;
 
 pub trait Ast: Debug {}
 
@@ -27,7 +28,7 @@ impl Ast for Function {}
 #[derive(Debug)]
 pub struct Block {
 	pub statements: Vec<Statement>,
-	pub value: Option<Expression>,
+	pub value:      Option<Expression>,
 }
 impl Ast for Block {}
 
@@ -35,9 +36,9 @@ impl Ast for Block {}
 pub enum Statement {
 	Expression(Expression),
 	VariableDeclaration {
-		kind: VariableKind,
-		name: String,
-		type_: Type,
+		kind:          VariableKind,
+		name:          String,
+		type_:         Type,
 		initial_value: Option<Expression>,
 	},
 }
@@ -47,11 +48,7 @@ impl Ast for Statement {}
 pub enum Expression {
 	NaturalLiteral(i128),
 	UnaryOperation(UnaryOperator, Box<Expression>),
-	BinaryOperation {
-		operator: BinaryOperator,
-		lhs: Box<Expression>,
-		rhs: Box<Expression>,
-	},
+	BinaryOperation { operator: BinaryOperator, lhs: Box<Expression>, rhs: Box<Expression> },
 }
 impl Ast for Expression {}
 

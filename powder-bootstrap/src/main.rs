@@ -1,12 +1,12 @@
 //! Powder bootstrap compiler.
 #![deny(clippy::all, clippy::pedantic, clippy::nursery, missing_docs)]
-
 #![feature(let_chains)]
 #![feature(test)]
 
-use log::Level;
 use std::env::args;
 use std::fs::read_to_string;
+
+use log::Level;
 
 mod ast;
 mod lexer;
@@ -21,19 +21,12 @@ fn main() {
 	let maybe_tokens = lexer::lex(&code);
 	match maybe_tokens {
 		Ok(tokens) => {
-			println!(
-				"{}",
-				tokens
-					.iter()
-					.map(|t| format!("{}", t))
-					.collect::<Vec<String>>()
-					.join(" ")
-			);
+			println!("{}", tokens.iter().map(|t| format!("{}", t)).collect::<Vec<String>>().join(" "));
 			match parser::parse(tokens) {
 				Ok(ast) => println!("{:#?}", ast),
 				Err(why) => panic!("Error while parsing: {:?}", why),
 			}
-		}
+		},
 		Err(why) => panic!("Error while lexing file {}: {}", filename, why),
 	}
 }

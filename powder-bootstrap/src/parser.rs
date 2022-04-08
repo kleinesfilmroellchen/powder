@@ -1,15 +1,15 @@
+use log::debug;
+
 use crate::ast::{
-	Ast, BinaryOperator, Block, Definition, Expression, File, Function, Statement, Type,
-	UnaryOperator, VariableKind,
+	Ast, BinaryOperator, Block, Definition, Expression, File, Function, Statement, Type, UnaryOperator, VariableKind,
 };
 use crate::lexer::{Token, TokenType};
-use log::debug;
 
 // TODO: Include the code string with this struct. That makes it self-referential, though, so we would need ouboros (?).
 #[derive(Debug, Clone, Copy)]
 pub struct TokenStream<'a> {
 	tokens: &'a [Token<'a>],
-	index: usize,
+	index:  usize,
 }
 
 impl<'a> TokenStream<'a> {
@@ -18,10 +18,7 @@ impl<'a> TokenStream<'a> {
 	}
 
 	pub fn strip_comments(tokens: Vec<Token<'a>>) -> Vec<Token<'a>> {
-		tokens
-			.into_iter()
-			.filter(|token| token.type_ != TokenType::Comment)
-			.collect()
+		tokens.into_iter().filter(|token| token.type_ != TokenType::Comment).collect()
 	}
 
 	pub const fn len(&self) -> usize {
@@ -42,10 +39,7 @@ impl<'a> TokenStream<'a> {
 	}
 
 	pub fn lookahead(&self, amount: usize, error_message: &str) -> Result<&[Token<'a>], String> {
-		self
-			.tokens
-			.get(self.index..self.index + amount)
-			.ok_or_else(|| error_message.to_owned())
+		self.tokens.get(self.index .. self.index + amount).ok_or_else(|| error_message.to_owned())
 	}
 
 	#[allow(clippy::cast_possible_wrap)]
@@ -59,21 +53,18 @@ impl<'a> TokenStream<'a> {
 	}
 
 	pub fn make_substream(&self) -> Self {
-		Self {
-			tokens: &self.tokens[self.index..],
-			index: 0,
-		}
+		Self { tokens: &self.tokens[self.index ..], index: 0 }
 	}
 
 	pub fn limit_to_first(&mut self, type_: TokenType) -> &Self {
 		let mut current_index = self.index;
-		while let Some(next_token) = self.tokens.get(current_index..=current_index) {
+		while let Some(next_token) = self.tokens.get(current_index ..= current_index) {
 			if next_token[0].type_ == type_ {
 				break;
 			}
 			current_index += 1;
 		}
-		self.tokens = &self.tokens[..current_index];
+		self.tokens = &self.tokens[.. current_index];
 
 		self
 	}
@@ -107,116 +98,72 @@ fn parse_definition(token_iterator: &mut TokenStream) -> Result<Definition, Stri
 	let first_token = token_iterator.lookahead(1, "Expected definition")?[0];
 	if first_token.expect(TokenType::Function).is_ok() {
 		token_iterator.next("")?;
-		let function_name = token_iterator
-			.next("Expected function name")?
-			.expect(TokenType::Identifer)?;
-		token_iterator
-			.next("Expected '('")?
-			.expect(TokenType::OpenParenthesis)?;
+		let function_name = token_iterator.next("Expected function name")?.expect(TokenType::Identifer)?;
+		token_iterator.next("Expected '('")?.expect(TokenType::OpenParenthesis)?;
 		// TODO: Parse arguments
-		token_iterator
-			.next("Expected ')'")?
-			.expect(TokenType::CloseParenthesis)?;
+		token_iterator.next("Expected ')'")?.expect(TokenType::CloseParenthesis)?;
 
 		let function_body = parse_block(token_iterator)?;
 
-		token_iterator
-			.next("Expected '}'")?
-			.expect(TokenType::CloseBrace)?;
+		token_iterator.next("Expected '}'")?.expect(TokenType::CloseBrace)?;
 
-		Ok(Definition::Function(Function {
-			name: function_name.text().to_string(),
-			body: function_body,
-		}))
+		Ok(Definition::Function(Function { name: function_name.text().to_string(), body: function_body }))
 	} else {
 		Ok(Definition::Statement(parse_statement(token_iterator)?))
 	}
 }
 
 fn parse_block(token_iterator: &mut TokenStream) -> Result<Block, String> {
-	token_iterator
-		.next("Expected '{'")?
-		.expect(TokenType::OpenBrace)?;
+	token_iterator.next("Expected '{'")?.expect(TokenType::OpenBrace)?;
 
 	let mut statements = Vec::<Statement>::new();
 
-	let mut maybe_peeked_next = token_iterator
-		.lookahead(1, "Expected statement")
-		.map(|peeked_next| peeked_next[0]);
-	while maybe_peeked_next.map_or(false, |peeked_next| {
-		peeked_next.type_ != TokenType::CloseBrace
-	}) {
+	let mut maybe_peeked_next = token_iterator.lookahead(1, "Expected statement").map(|peeked_next| peeked_next[0]);
+	while maybe_peeked_next.map_or(false, |peeked_next| peeked_next.type_ != TokenType::CloseBrace) {
 		statements.push(parse_statement(token_iterator)?);
-		maybe_peeked_next = token_iterator
-			.lookahead(1, "Expected statement")
-			.map(|peeked_next| peeked_next[0]);
+		maybe_peeked_next = token_iterator.lookahead(1, "Expected statement").map(|peeked_next| peeked_next[0]);
 	}
 
 	// TODO: Parse last expression
-	Ok(Block {
-		statements,
-		value: None,
-	})
+	Ok(Block { statements, value: None })
 }
 
 fn parse_statement(token_iterator: &mut TokenStream) -> Result<Statement, String> {
 	// TODO: Parse other statement types
-	let kind = token_iterator
-		.next("Expected statement")?
-		.expect_any(&[TokenType::Var, TokenType::Const])?;
+	let kind = token_iterator.next("Expected statement")?.expect_any(&[TokenType::Var, TokenType::Const])?;
 
-	let identifier = token_iterator
-		.next("Expected identifier")?
-		.expect(TokenType::Identifer)?;
-	token_iterator
-		.next("Expected ':'")?
-		.expect(TokenType::Colon)?;
+	let identifier = token_iterator.next("Expected identifier")?.expect(TokenType::Identifer)?;
+	token_iterator.next("Expected ':'")?.expect(TokenType::Colon)?;
 	// TODO: Allow any type
-	let _type = token_iterator
-		.next("Expected type")?
-		.expect(TokenType::N64)?;
+	let _type = token_iterator.next("Expected type")?.expect(TokenType::N64)?;
 
 	// Get the initializer if it exists
-	let initializer = if let Ok(_equals) =
-		token_iterator.lookahead(1, "Expected '=' or ';'")?[0].expect(TokenType::Equals)
-	{
-		token_iterator.next("")?;
-		let mut expression_stream = token_iterator.make_substream();
-		expression_stream.limit_to_first(TokenType::Semicolon);
-		// debug!("{:#?}", expression_stream);
-		let expression = parse_expression(&mut expression_stream)?;
-		expression_stream.backtrack(1, ":yaksplode:")?;
-		token_iterator.advance_past_other(&expression_stream)?;
-		token_iterator
-			.next("Expected ';'")?
-			.expect(TokenType::Semicolon)?;
-		Some(expression)
-	} else {
-		token_iterator
-			.next("")
-			.unwrap()
-			.expect(TokenType::Semicolon)?;
-		None
-	};
+	let initializer =
+		if let Ok(_equals) = token_iterator.lookahead(1, "Expected '=' or ';'")?[0].expect(TokenType::Equals) {
+			token_iterator.next("")?;
+			let mut expression_stream = token_iterator.make_substream();
+			expression_stream.limit_to_first(TokenType::Semicolon);
+			// debug!("{:#?}", expression_stream);
+			let expression = parse_expression(&mut expression_stream)?;
+			expression_stream.backtrack(1, ":yaksplode:")?;
+			token_iterator.advance_past_other(&expression_stream)?;
+			token_iterator.next("Expected ';'")?.expect(TokenType::Semicolon)?;
+			Some(expression)
+		} else {
+			token_iterator.next("").unwrap().expect(TokenType::Semicolon)?;
+			None
+		};
 
 	Ok(Statement::VariableDeclaration {
-		kind: if kind.type_ == TokenType::Const {
-			VariableKind::Immutable
-		} else {
-			VariableKind::Mutable
-		},
-		name: identifier.text().to_string(),
-		type_: Type::N64,
+		kind:          if kind.type_ == TokenType::Const { VariableKind::Immutable } else { VariableKind::Mutable },
+		name:          identifier.text().to_string(),
+		type_:         Type::N64,
 		initial_value: initializer,
 	})
 }
 
 fn parse_expression(token_iterator: &mut TokenStream) -> Result<Expression, String> {
-	parse_binary_operation(
-		token_iterator,
-		parse_term,
-		&[TokenType::Plus, TokenType::Minus],
-	)
+	parse_binary_operation(token_iterator, parse_term, &[TokenType::Plus, TokenType::Minus])
 }
 
 fn parse_binary_operation(
@@ -226,9 +173,8 @@ fn parse_binary_operation(
 ) -> Result<Expression, String> {
 	let mut lhs = sub_operation_parser(token_iterator)?;
 
-	let mut maybe_operator = token_iterator
-		.lookahead(1, &format!("Expected any of {:?}", operators))
-		.map(|tokens| tokens[0]);
+	let mut maybe_operator =
+		token_iterator.lookahead(1, &format!("Expected any of {:?}", operators)).map(|tokens| tokens[0]);
 	while let Ok(operator) = maybe_operator {
 		if !operators.contains(&operator.type_) {
 			break;
@@ -237,22 +183,17 @@ fn parse_binary_operation(
 		let rhs = sub_operation_parser(token_iterator)?;
 		lhs = Expression::BinaryOperation {
 			operator: BinaryOperator::from_token_type(operator.type_).unwrap(),
-			lhs: Box::new(lhs),
-			rhs: Box::new(rhs),
+			lhs:      Box::new(lhs),
+			rhs:      Box::new(rhs),
 		};
-		maybe_operator = token_iterator
-			.lookahead(1, &format!("Expected any of {:?}", operators))
-			.map(|tokens| tokens[0]);
+		maybe_operator =
+			token_iterator.lookahead(1, &format!("Expected any of {:?}", operators)).map(|tokens| tokens[0]);
 	}
 	Ok(lhs)
 }
 
 fn parse_term(token_iterator: &mut TokenStream) -> Result<Expression, String> {
-	parse_binary_operation(
-		token_iterator,
-		parse_factor,
-		&[TokenType::Star, TokenType::Slash],
-	)
+	parse_binary_operation(token_iterator, parse_factor, &[TokenType::Star, TokenType::Slash])
 }
 
 fn parse_factor(token_iterator: &mut TokenStream) -> Result<Expression, String> {
@@ -265,16 +206,14 @@ fn parse_factor(token_iterator: &mut TokenStream) -> Result<Expression, String> 
 				UnaryOperator::from_token_type(token.type_).unwrap(),
 				Box::new(unary_operand),
 			))
-		}
+		},
 		TokenType::IntegerLiteral => {
 			let number_literal = token_iterator.next("")?.expect(TokenType::IntegerLiteral)?;
 			// TODO: Use our own integer parser
-			let value: i128 = number_literal
-				.text()
-				.parse()
-				.map_err(|err| format!("Invalid number literal '{}'", err))?;
+			let value: i128 =
+				number_literal.text().parse().map_err(|err| format!("Invalid number literal '{}'", err))?;
 			Ok(Expression::NaturalLiteral(value))
-		}
+		},
 		_ => Err(format!("Unknown start of expression '{:?}'", token.type_)),
 	}
 }
@@ -282,9 +221,10 @@ fn parse_factor(token_iterator: &mut TokenStream) -> Result<Expression, String> 
 #[cfg(test)]
 mod test {
 	extern crate test;
+	use test::Bencher;
+
 	use super::*;
 	use crate::lexer;
-	use test::Bencher;
 
 	#[bench]
 	fn bench_parser(bencher: &mut Bencher) {
@@ -298,26 +238,14 @@ mod test {
 			Expression::NaturalLiteral(value) => value,
 			Expression::UnaryOperation(UnaryOperator::Plus, value) => evaluate_expression(*value),
 			Expression::UnaryOperation(UnaryOperator::Minus, value) => -evaluate_expression(*value),
-			Expression::BinaryOperation {
-				lhs,
-				operator: BinaryOperator::Add,
-				rhs,
-			} => evaluate_expression(*lhs) + evaluate_expression(*rhs),
-			Expression::BinaryOperation {
-				lhs,
-				operator: BinaryOperator::Subtract,
-				rhs,
-			} => evaluate_expression(*lhs) - evaluate_expression(*rhs),
-			Expression::BinaryOperation {
-				lhs,
-				operator: BinaryOperator::Multiply,
-				rhs,
-			} => evaluate_expression(*lhs) * evaluate_expression(*rhs),
-			Expression::BinaryOperation {
-				lhs,
-				operator: BinaryOperator::Divide,
-				rhs,
-			} => evaluate_expression(*lhs) / evaluate_expression(*rhs),
+			Expression::BinaryOperation { lhs, operator: BinaryOperator::Add, rhs } =>
+				evaluate_expression(*lhs) + evaluate_expression(*rhs),
+			Expression::BinaryOperation { lhs, operator: BinaryOperator::Subtract, rhs } =>
+				evaluate_expression(*lhs) - evaluate_expression(*rhs),
+			Expression::BinaryOperation { lhs, operator: BinaryOperator::Multiply, rhs } =>
+				evaluate_expression(*lhs) * evaluate_expression(*rhs),
+			Expression::BinaryOperation { lhs, operator: BinaryOperator::Divide, rhs } =>
+				evaluate_expression(*lhs) / evaluate_expression(*rhs),
 			_ => panic!("Unsupported expression {:?} for evaluation", expression),
 		}
 	}
@@ -333,30 +261,12 @@ mod test {
 
 	#[test]
 	fn test_parse_expression() -> Result<(), String> {
-		assert_eq!(
-			evaluate_expression(parse_expression(&mut create_tokens("-15")?)?),
-			-15
-		);
-		assert_eq!(
-			evaluate_expression(parse_expression(&mut create_tokens("0 + 7 * 3 + 5")?)?),
-			26
-		);
-		assert_eq!(
-			evaluate_expression(parse_expression(&mut create_tokens("1 - 5")?)?),
-			-4
-		);
-		assert_eq!(
-			evaluate_expression(parse_expression(&mut create_tokens("8 * 0 + 4")?)?),
-			4
-		);
-		assert_eq!(
-			evaluate_expression(parse_expression(&mut create_tokens("22 - 6 *2+1")?)?),
-			11
-		);
-		assert_eq!(
-			evaluate_expression(parse_expression(&mut create_tokens("2 - 2 - 1")?)?),
-			-1
-		);
+		assert_eq!(evaluate_expression(parse_expression(&mut create_tokens("-15")?)?), -15);
+		assert_eq!(evaluate_expression(parse_expression(&mut create_tokens("0 + 7 * 3 + 5")?)?), 26);
+		assert_eq!(evaluate_expression(parse_expression(&mut create_tokens("1 - 5")?)?), -4);
+		assert_eq!(evaluate_expression(parse_expression(&mut create_tokens("8 * 0 + 4")?)?), 4);
+		assert_eq!(evaluate_expression(parse_expression(&mut create_tokens("22 - 6 *2+1")?)?), 11);
+		assert_eq!(evaluate_expression(parse_expression(&mut create_tokens("2 - 2 - 1")?)?), -1);
 
 		Ok(())
 	}

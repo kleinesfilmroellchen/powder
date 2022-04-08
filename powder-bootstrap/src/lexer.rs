@@ -1,5 +1,6 @@
-use log::debug;
 use std::fmt::{Display, Formatter};
+
+use log::debug;
 
 #[repr(u64)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -63,15 +64,14 @@ impl TokenType {
 pub struct Token<'a> {
 	pub type_: TokenType,
 	pub start: usize,
-	pub end: usize,
-	pub code: &'a str,
+	pub end:   usize,
+	pub code:  &'a str,
 }
 
 impl<'a> Token<'a> {
 	pub fn text(&self) -> &'a str {
-		self
-			.code
-			.get(self.start..self.end)
+		self.code
+			.get(self.start .. self.end)
 			.unwrap_or_else(|| panic!("Invalid token from {} to {}", self.start, self.end))
 	}
 
@@ -101,7 +101,7 @@ impl Display for Token<'_> {
 
 #[derive(Debug)]
 struct LexerState<'a> {
-	pub code: &'a str,
+	pub code:             &'a str,
 	pub current_position: usize,
 }
 
@@ -111,8 +111,7 @@ impl<'a> LexerState<'a> {
 	}
 
 	pub fn current_char(&self) -> char {
-		self
-			.code
+		self.code
 			.chars()
 			.nth(self.current_position)
 			.unwrap_or_else(|| panic!("Invalid lexer position {}", self.current_position))
@@ -129,13 +128,14 @@ impl<'a> LexerState<'a> {
 		self
 	}
 
-	/// Read the longest continuous sequence of characters, starting from the current position, for which the predicate returns true.
+	/// Read the longest continuous sequence of characters, starting from the current position, for which the predicate
+	/// returns true.
 	pub fn next_of_kind(&mut self, predicate: fn(&char) -> bool) -> &'a str {
 		let start = self.current_position;
 		while !self.is_end() && predicate(&self.current_char()) {
 			self.advance();
 		}
-		&self.code[start..self.current_position]
+		&self.code[start .. self.current_position]
 	}
 
 	/// Only works correctly if the first character was already checked to be non-numeric.
@@ -158,10 +158,7 @@ impl<'a> LexerState<'a> {
 }
 #[allow(clippy::ptr_arg)]
 pub fn lex(code: &str) -> Result<Vec<Token>, String> {
-	let mut state = LexerState {
-		code,
-		current_position: 0,
-	};
+	let mut state = LexerState { code, current_position: 0 };
 
 	let mut tokens = Vec::new();
 

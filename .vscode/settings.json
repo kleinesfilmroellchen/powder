@@ -1,0 +1,4 @@
+{
+	"rust.rustfmt_path": "${workspaceFolder}/powder-bootstrap/rustfmt.toml",
+	"rust-client.channel": "nightly"
+}
