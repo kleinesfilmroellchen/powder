@@ -3,7 +3,7 @@
 
 function main() {
 	const x: n64 = +78 /6;
-	var y: n64 = 0 + 7 * 3 + 5;
+	variable y: n64 = 0 + 7 * 3 + 5;
 }
 
 const a_global: n64;

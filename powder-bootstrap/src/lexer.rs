@@ -36,7 +36,7 @@ impl TokenType {
 		match string {
 			"function" => Some(Self::Function),
 			"const" => Some(Self::Const),
-			"var" => Some(Self::Var),
+			"variable" => Some(Self::Var),
 			"n64" => Some(Self::N64),
 			_ => None,
 		}

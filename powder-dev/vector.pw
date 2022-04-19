@@ -21,8 +21,8 @@ public interface Iterator<T>;
 public method Iterator<T>.next(self: &mut): Optional<T>;
 
 public method Iterator<T>.count(self: &mut): usize {
-	var current = self.next();
-	var count = 0;
+	variable current = self.next();
+	variable count = 0;
 	while current.is_some() {
 		count += 1;
 	}
